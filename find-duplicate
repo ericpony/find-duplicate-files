@@ -1,0 +1,78 @@
+#! /usr/bin/perl
+
+if($#ARGV!=1 or ! -d $ARGV[0] or ! -d $ARGV[1]) {  print STDERR "Usage: $0 DIR1 DIR2\n"; exit -1; }
+
+use String::CRC32;
+use Digest::MD5;
+
+$ctx = Digest::MD5->new;
+
+sub ls { 
+	my $input; 
+	open($input, "/bin/ls -1sS --block-size=1 $_[0] | tail -n+2 |") or die 'Cannot open pipeline';
+	return $input;
+}
+
+sub crc {
+	open(FILE, $_[0]);
+ 	binmode FILE;
+	$CRC = crc32(*FILE) or die "Cannot open file $_[0]";
+	close(FILE);
+	return $CRC;
+}
+
+sub md5 {
+	open(FILE, $_[0]) or die "Cannot open file $_[0]";
+ 	binmode FILE;
+	$ctx->addfile(*FILE);
+	close(FILE);
+	return $ctx->hexdigest;
+}
+
+my $pipe1 = ls($ARGV[0]);
+my $pipe2 = ls($ARGV[1]);
+my $next1 = 1, $next2 = 1;
+my $filesize1, $filesize2 = ~0; # max integer value
+my $DEBUG = 0; if(DEBUG) { use Term::ANSIColor; }
+
+# Pre-condition: files are sorted by size in descendant order
+while (1) {
+	if ($next1) { 
+		($fileinfo1=<$pipe1>) || last;
+		$DEBUG && print STDERR "File1: $fileinfo1";
+		$fileinfo1 =~ /^ *(\S+) +(\S+)/;
+		$filesize1 = $1;
+		$filename1 = $2;
+		$file1 = "$ARGV[0]/$filename1";
+		$filesize1 > $filesize2 && next;
+		$next1 = $crc1 = $md51 = '';
+		$filesize1 < $filesize2 && ($next2 = 1);
+	}
+	if ($next2) {
+		($fileinfo2=<$pipe2>) || last;
+		$DEBUG && print STDERR color('cyan'), "File2: $fileinfo2", color('reset');
+		$fileinfo2 =~ /^ *(\S+) +(\S+)/;
+		$filesize2 = $1;
+		$filename2 = $2;
+		$file2 = "$ARGV[1]/$filename2";
+		$filesize1 < $filesize2 && next;
+		$next2 = $crc2 = $md52 = '';
+		$filesize1 > $filesize2 && ($next1 = 1) && next;
+	}
+
+	$next2 = 1;
+	
+	$DEBUG && print STDERR color('yellow'), "Checking $file1 and $file2\n", color('reset');
+
+	((stat($file1))[1] == (stat($file2))[1]) && next; # both point to the same file
+
+	$crc1 || ($crc1 = crc($file1));
+	$crc2 || ($crc2 = crc($file2));
+	($crc1 == $crc2) || next;
+
+	$md51 || ($md51 = md5($file1));
+	$md52 || ($md52 = md5($file2));
+	($md51 == $md52) || next;
+
+	print "$file1 $file2\n";
+}	
