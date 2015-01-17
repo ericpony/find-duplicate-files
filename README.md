@@ -5,4 +5,4 @@ Usage
 -----
     find-duplicate DIR1 DIR2
 
-The script outputs a list of pairs associating the files in `DIR2` with the first duplicate file found in `DIR1`. Duplication is checked using [String::CRC32](http://search.cpan.org/~soenke/String-CRC32-1.5/CRC32.pod) and [Digest::MD5](http://search.cpan.org/~gaas/Digest-MD5-2.54/MD5.pm).
+The script associates the files in `DIR2` with the first duplicate file found in `DIR1`. Duplication is checked using [String::CRC32](http://search.cpan.org/~soenke/String-CRC32-1.5/CRC32.pod) and [Digest::MD5](http://search.cpan.org/~gaas/Digest-MD5-2.54/MD5.pm).
