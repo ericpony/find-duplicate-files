@@ -8,25 +8,25 @@ use Digest::MD5;
 $ctx = Digest::MD5->new;
 
 sub ls { 
-	my $input; 
-	open($input, "/bin/ls -1sS --block-size=1 $_[0] | tail -n+2 |") or die 'Cannot open pipeline';
-	return $input;
+  my $input; 
+  open($input, "/bin/ls -1sS --block-size=1 $_[0] | tail -n+2 |") or die 'Cannot open pipeline';
+  return $input;
 }
 
 sub crc {
-	open(FILE, $_[0]);
- 	binmode FILE;
-	$CRC = crc32(*FILE) or die "Cannot open file $_[0]";
-	close(FILE);
-	return $CRC;
+  open(FILE, $_[0]);
+  binmode FILE;
+  $CRC = crc32(*FILE) or die "Cannot open file $_[0]";
+  close(FILE);
+  return $CRC;
 }
 
 sub md5 {
-	open(FILE, $_[0]) or die "Cannot open file $_[0]";
- 	binmode FILE;
-	$ctx->addfile(*FILE);
-	close(FILE);
-	return $ctx->hexdigest;
+  open(FILE, $_[0]) or die "Cannot open file $_[0]";
+  binmode FILE;
+  $ctx->addfile(*FILE);
+  close(FILE);
+  return $ctx->hexdigest;
 }
 
 my $pipe1 = ls($ARGV[0]);
@@ -74,5 +74,5 @@ while (1) {
 	$md52 or $md52 = md5($file2);
 	$md51 == $md52 or next;
 
-	print "$file1 $file2\n";
-}	
+  print "$file1 $file2\n";
+}
