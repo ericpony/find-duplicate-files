@@ -1,78 +1,81 @@
 #! /usr/bin/perl
 
-if($#ARGV!=1 or ! -d $ARGV[0] or ! -d $ARGV[1]) {  print STDERR "Usage: $0 DIR1 DIR2\n"; exit -1; }
+my @dirs, @temps, $type='crc', $digest_mode;
+my $DEBUG = 0;
+
+sub usage {
+	print STDERR "Usage: $0 [--checksum=TYPE] [DIR1 DIR2 ...]\n", "TYPE: crc (default), md5, both"; 
+	exit -1; 
+}
+
+sub print_duplicate { print "$_[0] $_[1]\n" }
+
+END { 
+	foreach (@temps) {
+		unlink $_;
+		if(-f $_) { print 'cannot remove '.$_ }
+	}
+}
+
+foreach (@ARGV) {
+	/^--checksum=(\S+)$/ and $type = $1 and next;
+	/^--digest$/ and $digest_mode = 1 and next;
+
+	-d $_ && push(@dirs, $_) or die "Invalid directory: $_";
+}
+
+if(!$digest_mode) {
+	if($#dirs>=0) {
+		use File::Temp qw(tempfile);
+		foreach my $dir (@dirs) {
+			my ($fh, $fname) = tempfile();
+			open(IN,  "/bin/ls -1 $dir | tail -n+2 |");
+			open(OUT, "> $fname") or die 'Cannot write to temporary files.';
+			print OUT "$dir/$_" while(<IN>);
+			push(@temps, $fname);
+		}
+		open(IN, 'cat '.join(' ', @temps)." | $0 --checksum=$type --digest | sort -k 1,1 |"); 
+	}
+	while(1) {
+		$_ = <IN> or last;
+		/^ *(\S+) +(\S+)/ or die "Invalid entry: $_";
+
+		!$file1 and ($hash1, $file1) = ($1, $2) and next;		
+
+		($hash2, $file2) = ($1, $2);
+
+		$is_duplicate = ($hash1 eq $hash2 and (stat($file1))[1] != (stat($file2))[1]);
+
+		$DEBUG and print($is_duplicate ? 'o' : 'x', ' ', $file1.':'.$hash1.' '.$file2.':'.$hash2, "\n") and $is_duplicate and next;
+
+		$is_duplicate and print_duplicate($file1, $file2) and next;
+		
+		($hash1, $file1) = ($hash2, $file2);
+	}
+	exit;
+}
 
 use String::CRC32;
 use Digest::MD5;
-
 $ctx = Digest::MD5->new;
 
-sub ls { 
-	my $input; 
-	open($input, "/bin/ls -1sS --block-size=1 $_[0] | tail -n+2 |") or die 'Cannot open pipeline';
-	return $input;
-}
+$mode = 0;
+$type eq 'crc'  and $mode = 1;
+$type eq 'md5'  and $mode = 2;
+$type eq 'both' and $mode = 3;
+$mode or die "Invalid digest type: $type";
 
-sub crc {
-	open(FILE, $_[0]);
-	binmode FILE;
-	$CRC = crc32(*FILE) or die "Cannot open file $_[0]";
-	close(FILE);
-	return $CRC;
-}
-
-sub md5 {
+sub digest {
 	open(FILE, $_[0]) or die "Cannot open file $_[0]";
 	binmode FILE;
-	$ctx->addfile(*FILE);
-	close(FILE);
-	return $ctx->hexdigest;
-}
 
-my $pipe1 = ls($ARGV[0]);
-my $pipe2 = ls($ARGV[1]);
-my $next1 = 1, $next2 = 1;
-my $size1, $size2 = ~0; # max int
-my $DEBUG = 0; if(DEBUG) { use Term::ANSIColor; }
-
-# Pre-condition: files are sorted by size in descendant order
-while (1) {
-	if ($next1) { 
-		$_ = <$pipe1> or last;
-		$DEBUG and print STDERR "File1: $_";
-		/^ *(\S+) +(\S+)/ or die "Invalid entry: $_";
-		$size1 = $1;
-		$filename1 = $2;
-		$file1 = "$ARGV[0]/$filename1";
-		$size1 > $size2 and next;
-		$next1 = $crc1 = $md51 = '';
-		$size1 < $size2 and ($next2 = 1);
-	}
-	if ($next2) {
-		$_ = <$pipe2> or last;
-		$DEBUG and print STDERR color('cyan'), "File2: $_", color('reset');
-		/^ *(\S+) +(\S+)/ or die "Invalid entry: $_";
-		$size2 = $1;
-		$filename2 = $2;
-		$file2 = "$ARGV[1]/$filename2";
-		$size1 < $size2 and next;
-		$next2 = $crc2 = $md52 = '';
-		$size1 > $size2 and ($next1 = 1) and next;
-	}
-
-	$next2 = 1;
+	if($mode&1) { $crc = crc32(*FILE) }
+	if($mode&3) { seek FILE, 0, 0 } 
+	if($mode&2) { $ctx->addfile(*FILE); $md5 = $ctx->hexdigest } 
 	
-	$DEBUG and print STDERR color('yellow'), "Checking $file1 and $file2\n", color('reset');
-
-	(stat($file1))[1] == (stat($file2))[1] and next; # both point to the same file
-
-	$crc1 or $crc1 = crc($file1);
-	$crc2 or $crc2 = crc($file2);
-	$crc1 == $crc2 or next;
-
-	$md51 or $md51 = md5($file1);
-	$md52 or $md52 = md5($file2);
-	$md51 == $md52 or next;
-
-	print "$file1 $file2\n";
+	if($mode==3) { return $md5.'-'.$crc }
+	if($mode==2) { return $md5 }
+	if($mode==1) { return $crc }
 }
+
+chomp and (-f $_ && -s $_) and print (&digest($_), ' ', $_, "\n") while(<STDIN>);
