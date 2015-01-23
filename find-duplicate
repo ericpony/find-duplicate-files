@@ -1,10 +1,15 @@
 #! /usr/bin/perl
 
-my @dirs, @temps, $type='crc', $digest_mode;
-my $DEBUG = 0;
+my @dirs, @lists, @temps, $digest_mode, $verbose_mode, $hash_type = 'crc';
+
+use constant false => 0;
+use constant true  => 1;
 
 sub usage {
-	print STDERR "Usage: $0 [--checksum=TYPE] [DIR1 DIR2 ...]\n", "TYPE: crc (default), md5, both"; 
+	print STDERR "Usage: $0 [OPTION]... {DIR,FILE}*\nOptions:\n", 
+	"\t--checksum=TYPE\t Specify the type of checksum. TYPE can be {crc, md5, both}. Default is crc.\n",
+	"\t--digest\t Don't find duplicates. Instead, print the checksums of the input files.\n",
+	"\t--verbose\t Print debug messages.\n";
 	exit -1; 
 }
 
@@ -18,14 +23,17 @@ END {
 }
 
 foreach (@ARGV) {
-	/^--checksum=(\S+)$/ and $type = $1 and next;
-	/^--digest$/ and $digest_mode = 1 and next;
-
-	-d $_ && push(@dirs, $_) or die "Invalid directory: $_";
+	/^--checksum=(\S+)$/	and $hash_type = $1 and next;
+	/^--digest$/					and $digest_mode = true and next;
+	/^--verbose$/					and $verbose_mode = true and next;
+	/^--help$/						and &usage;
+	-d $_ and push(@dirs, $_) and next;
+	-f $_ and push(@lists, $_) and next;
+	die "Invalid argument: $_";
 }
 
 if(!$digest_mode) {
-	if($#dirs>=0) {
+	if(@dirs or @lists) {
 		use File::Temp qw(tempfile);
 		foreach my $dir (@dirs) {
 			my ($fh, $fname) = tempfile();
@@ -34,8 +42,12 @@ if(!$digest_mode) {
 			print OUT "$dir/$_" while(<IN>);
 			push(@temps, $fname);
 		}
-		open(IN, 'cat '.join(' ', @temps)." | $0 --checksum=$type --digest | sort -k 1,1 |"); 
+		open(IN, 'cat '.join(' ', @temps).' '.join(' ', @lists)." | $0 --checksum=$hash_type --digest | sort -k 1,1 |"); 
 	}
+	else {
+		open(IN, "cat | sort -k 1,1 |"); 
+	}
+
 	while(1) {
 		$_ = <IN> or last;
 		/^ *(\S+) +(\S+)/ or die "Invalid entry: $_";
@@ -46,9 +58,9 @@ if(!$digest_mode) {
 
 		$is_duplicate = ($hash1 eq $hash2 and (stat($file1))[1] != (stat($file2))[1]);
 
-		$DEBUG and print($is_duplicate ? 'o' : 'x', ' ', $file1.':'.$hash1.' '.$file2.':'.$hash2, "\n") and $is_duplicate and next;
+		$verbose_mode and print($is_duplicate ? 'o' : 'x', ' ', $file1.':'.$hash1.' '.$file2.':'.$hash2, "\n") and $is_duplicate and next;
 
-		$is_duplicate and print_duplicate($file1, $file2) and next;
+		$is_duplicate and &print_duplicate($file1, $file2) and next;
 		
 		($hash1, $file1) = ($hash2, $file2);
 	}
@@ -60,10 +72,10 @@ use Digest::MD5;
 $ctx = Digest::MD5->new;
 
 $mode = 0;
-$type eq 'crc'  and $mode = 1;
-$type eq 'md5'  and $mode = 2;
-$type eq 'both' and $mode = 3;
-$mode or die "Invalid digest type: $type";
+$hash_type eq 'crc'  and $mode = 1;
+$hash_type eq 'md5'  and $mode = 2;
+$hash_type eq 'both' and $mode = 3;
+$mode or die "Invalid digest type: $hash_type";
 
 sub digest {
 	open(FILE, $_[0]) or die "Cannot open file $_[0]";
