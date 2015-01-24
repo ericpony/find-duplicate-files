@@ -9,7 +9,10 @@ sub usage {
 	print STDERR "Usage: $0 [OPTION]... {DIR,FILE}*\nOptions:\n", 
 	"\t--checksum=TYPE\t Specify the type of checksum. TYPE can be {crc, md5, both}. Default is crc.\n",
 	"\t--digest\t Don't find duplicates. Instead, print the checksums of the input files.\n",
-	"\t--verbose\t Print debug messages.\n";
+	"\t--parallel=N\t Change the number of sorts run concurrently to N\n",
+	"\t--verbose\t Print debug messages.\n",
+	"\t--help\t Print this message\n"
+	;
 	exit -1; 
 }
 
@@ -24,6 +27,7 @@ END {
 
 foreach (@ARGV) {
 	/^--checksum=(\S+)$/	and $hash_type = $1 and next;
+	/^--parallel=(\d+)$/	and $parellel = $1 and next;
 	/^--digest$/					and $digest_mode = true and next;
 	/^--verbose$/					and $verbose_mode = true and next;
 	/^--help$/						and &usage;
@@ -32,20 +36,24 @@ foreach (@ARGV) {
 	die "Invalid argument: $_";
 }
 
+if(@dirs or @lists) {
+	use File::Temp qw(tempfile);
+	foreach my $dir (@dirs) {
+		my ($fh, $fname) = tempfile();
+		open(IN,  "/bin/ls -1 $dir | tail -n+2 |");
+		open(OUT, "> $fname") or die 'Cannot write to temporary files.';
+		print OUT "$dir/$_" while(<IN>);
+		push(@temps, $fname);
+	}
+}
+
 if(!$digest_mode) {
+
 	if(@dirs or @lists) {
-		use File::Temp qw(tempfile);
-		foreach my $dir (@dirs) {
-			my ($fh, $fname) = tempfile();
-			open(IN,  "/bin/ls -1 $dir | tail -n+2 |");
-			open(OUT, "> $fname") or die 'Cannot write to temporary files.';
-			print OUT "$dir/$_" while(<IN>);
-			push(@temps, $fname);
-		}
 		open(IN, 'cat '.join(' ', @temps).' '.join(' ', @lists)." | $0 --checksum=$hash_type --digest | sort -k 1,1 |"); 
 	}
 	else {
-		open(IN, "cat | sort -k 1,1 |"); 
+		open(IN, "cat | sort -k 1,1 |");
 	}
 
 	while(1) {
@@ -90,4 +98,10 @@ sub digest {
 	if($mode==1) { return $crc }
 }
 
-chomp and (-f $_ && -s $_) and print (&digest($_), ' ', $_, "\n") while(<STDIN>);
+if(@dirs or @lists) {
+	open(IN, 'cat '.join(' ', @temps).' '.join(' ', @lists)." |"); 
+}
+else {
+	*IN = *STDIN;
+}
+chomp and (-f $_ && -s $_) and print (&digest($_), ' ', $_, "\n") while(<IN>);
