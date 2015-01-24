@@ -13,7 +13,7 @@ Usage
         --verbose        Print debug messages.
         --help           Print this message.
 
-Given at least one DIR/FILE, the script checks the files contains in DIR or listed in FILE. A FILE is expected to be the output of `ls -1 DIR`. For example, to find duplicate files in directory `images` using MD5 as checksum, you can write
+Given at least one DIR/FILE, the script checks the files contains in DIR or listed in FILE (which is expected to be the output of something like `ls -1 DIR`). For example, to find duplicate files in directory `images` using MD5 as checksum, you can write
 
     find-duplicate --checksum=md5 images
 
