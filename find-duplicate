@@ -26,11 +26,11 @@ END {
 }
 
 foreach (@ARGV) {
-	/^--checksum=(\S+)$/	and $hash_type = $1 and next;
-	/^--parallel=(\d+)$/	and $parellel = $1 and next;
-	/^--digest$/					and $digest_mode = true and next;
-	/^--verbose$/					and $verbose_mode = true and next;
-	/^--help$/						and &usage;
+	/^--checksum=(\S+)$/  and $hash_type = $1 and next;
+	/^--parallel=(\d+)$/  and $parellel = $1 and next;
+	/^--digest$/          and $digest_mode = true and next;
+	/^--verbose$/         and $verbose_mode = true and next;
+	/^--help$/            and &usage;
 	-d $_ and push(@dirs, $_) and next;
 	-f $_ and push(@lists, $_) and next;
 	die "Invalid argument: $_";
