@@ -9,8 +9,8 @@ Usage
     Usage: /data/slugfly/ericpony/BIN/find-duplicate [OPTIONS] {DIR,FILE}*
     Options:
       --checksum=TYPE  Specify the type(crc, md5, both) of checksum. Default is crc.
-      --digest         Don't find duplicates. Instead, print checksums of the input files.
-      --pipe           Don't compute checksums. Read checksums from STDIN or FILE.
+      --digest         Don't find duplicates. Print checksums of the input files instead.
+      --pipe           Don't compute checksums. Read checksums from STDIN or FILE instead.
       --parallel=N     Change the number of sorts run concurrently to N.
       --verbose        Print debug messages.
       --help           Print this message.
