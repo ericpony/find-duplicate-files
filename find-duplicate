@@ -1,17 +1,19 @@
 #! /usr/bin/perl
 
-my @dirs, @lists, @temps, $digest_mode, $verbose_mode, $hash_type = 'crc';
+my @dirs, @lists, @temps, $digest_mode, $verbose_mode, $pipe_mode, $hash_type = 'crc';
 
 use constant false => 0;
 use constant true  => 1;
 
 sub usage {
-	print STDERR "Usage: $0 [OPTION]... {DIR,FILE}*\nOptions:\n", 
-	"\t--checksum=TYPE\t Specify the type of checksum. TYPE can be {crc, md5, both}. Default is crc.\n",
-	"\t--digest\t Don't find duplicates. Instead, print the checksums of the input files.\n",
-	"\t--parallel=N\t Change the number of sorts run concurrently to N\n",
-	"\t--verbose\t Print debug messages.\n",
-	"\t--help\t Print this message\n"
+	print STDERR "Usage: $0 [OPTION]... {DIR,FILE}*\n",
+	"Options:\n", 
+	"\t--checksum=TYPE   Specify the type of checksum. TYPE can be {crc, md5, both}. Default is crc.\n",
+	"\t--digest          Do not find duplicates. Instead, print checksums of the files.\n",
+	"\t--pipe            Read checksums from STDIN.\n",
+	"\t--parallel=N      Change the number of sorts run concurrently to N.\n",
+	"\t--verbose         Print debug messages.\n",
+	"\t--help            Print this message.\n"
 	;
 	exit -1; 
 }
@@ -29,6 +31,7 @@ foreach (@ARGV) {
 	/^--checksum=(\S+)$/  and $hash_type = $1 and next;
 	/^--parallel=(\d+)$/  and $parellel = $1 and next;
 	/^--digest$/          and $digest_mode = true and next;
+	/^--pipe$/            and $pipe_mode = true and next;
 	/^--verbose$/         and $verbose_mode = true and next;
 	/^--help$/            and &usage;
 	-d $_ and push(@dirs, $_) and next;
@@ -36,7 +39,7 @@ foreach (@ARGV) {
 	die "Invalid argument: $_";
 }
 
-if(@dirs or @lists) {
+if(@dirs) {
 	use File::Temp qw(tempfile);
 	foreach my $dir (@dirs) {
 		my ($fh, $fname) = tempfile();
@@ -47,16 +50,15 @@ if(@dirs or @lists) {
 	}
 }
 
+my $source = join(' ', @temps).' '.join(' ', @lists);
+my $digest = (!$pipe_mode ? "| $0 --checksum=$hash_type --digest" : '');
+my $sort   = (!$digest_mode ? "| sort -k 1,1" : '');
+
+open(IN, "cat $source $digest $sort |");
+
 if(!$digest_mode) {
 
-	if(@dirs or @lists) {
-		open(IN, 'cat '.join(' ', @temps).' '.join(' ', @lists)." | $0 --checksum=$hash_type --digest | sort -k 1,1 |"); 
-	}
-	else {
-		open(IN, "cat | sort -k 1,1 |");
-	}
-
-	while(1) {
+	while(true) {
 		$_ = <IN> or last;
 		/^ *(\S+) +(\S+)/ or die "Invalid entry: $_";
 
@@ -98,10 +100,4 @@ sub digest {
 	if($mode==1) { return $crc }
 }
 
-if(@dirs or @lists) {
-	open(IN, 'cat '.join(' ', @temps).' '.join(' ', @lists)." |"); 
-}
-else {
-	*IN = *STDIN;
-}
 chomp and (-f $_ && -s $_) and print (&digest($_), ' ', $_, "\n") while(<IN>);
