@@ -32,9 +32,9 @@ Discussions
 In practice, computing checksum is usually the most time-consuming stage in finding duplicate files. Hence, it is sometimes preferrable to separate this stage from the process of finding duplicate files. For example, consider the situation that you want to compare files in folder A against those in folders B<sub>1</sub>, ..., B<sub>n</sub> and you don't want to compare files in B<sub>1</sub>, ..., B<sub>n</sub> with each other. In this case, comparing the folders using pre-computed checksums is far more efficient than comparing the folders in pairs directly. You can also parallelize the computation of checksums as follows:
 
     find-duplicate --digest A > A.checksum
-    for i in $(seq 1 $n); do
+    for i in $(seq 1 $n); do # would spawn $n processes
         (   find-duplicate --digest B$i > B$i.checksum
-            (   flock -n 200
+            (   flock 200
                 cat A.checksum B$i.checksum | find-duplicate --pipe 
                 rm B$i.checksum
             ) 200>.lock 
