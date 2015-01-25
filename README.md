@@ -48,4 +48,4 @@ For another example, suppose you want to compare files in folders B<sub>1</sub>,
         find-duplicate --digest B$i > B$i.checksum &
     done
     wait 
-    cat *.checksum | find-duplicate --pipe && *.checksum
+    cat *.checksum | find-duplicate --pipe && rm *.checksum
