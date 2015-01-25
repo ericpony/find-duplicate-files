@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-my @dirs, @lists, @temps, $digest_mode, $verbose_mode, $pipe_mode, $hash_type = 'crc';
+my @dirs, @lists, @temps, $print_digest, $read_digest, $verbose_mode, $hash_type = 'crc';
 
 use constant false => 0;
 use constant true  => 1;
@@ -22,7 +22,7 @@ sub print_duplicate { print "$_[0] $_[1]\n" }
 
 END { 
 	foreach (@temps) {
-		unlink $_;
+		unlink;
 		if(-f $_) { print 'cannot remove '.$_ }
 	}
 }
@@ -30,8 +30,8 @@ END {
 foreach (@ARGV) {
 	/^--checksum=(\S+)$/  and $hash_type = $1 and next;
 	/^--parallel=(\d+)$/  and $parellel = $1 and next;
-	/^--digest$/          and $digest_mode = true and next;
-	/^--pipe$/            and $pipe_mode = true and next;
+	/^--digest$/          and $print_digest = true and next;
+	/^--pipe$/            and $read_digest = true and next;
 	/^--verbose$/         and $verbose_mode = true and next;
 	/^--help$/            and &usage;
 	-d $_ and push(@dirs, $_) and next;
@@ -51,13 +51,12 @@ if(@dirs) {
 }
 
 my $source = join(' ', @temps).' '.join(' ', @lists);
-my $digest = (!$pipe_mode ? "| $0 --checksum=$hash_type --digest" : '');
-my $sort   = (!$digest_mode ? "| sort -k 1,1" : '');
+my $digest = (!$read_digest&&!$print_digest ? "| $0 --checksum=$hash_type --digest" : '');
+my $sort   = (!$print_digest ? "| sort -k 1,1" : '');
 
 open(IN, "cat $source $digest $sort |");
 
-if(!$digest_mode) {
-
+if(!$print_digest) {
 	while(true) {
 		$_ = <IN> or last;
 		/^ *(\S+) +(\S+)/ or die "Invalid entry: $_";
@@ -73,6 +72,14 @@ if(!$digest_mode) {
 		$is_duplicate and &print_duplicate($file1, $file2) and next;
 		
 		($hash1, $file1) = ($hash2, $file2);
+	}
+	exit;
+}
+if($read_digest) {
+	while(<IN>) {
+		/^ *\S+ +(\S+)/ or die "Invalid entry: $_";
+		! -f $1 and ! -d $1 and die "File doesn't exist: $1";
+		print;
 	}
 	exit;
 }
