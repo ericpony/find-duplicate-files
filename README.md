@@ -1,4 +1,5 @@
-    # find-duplicate-files
+#Find duplicate files
+
 A Perl script that locates duplicate files (ie. files with identical contents but at different inodes) with O(n) time and O(1) space overhead. It uses GNU sort that takes O(nlgn) time and O(n) space to sort the entries. This script manages to minimize the overheads needed to find duplicates. It should be among the most efficient scripts available on GitHub for the same purpose. 
 
 File duplicatiion is checked using [String::CRC32](http://search.cpan.org/~soenke/String-CRC32-1.5/CRC32.pod) and [Digest::MD5](http://search.cpan.org/~gaas/Digest-MD5-2.54/MD5.pm). You can use one or both of them as checksum.
@@ -28,4 +29,15 @@ Note that the above lines doesn't check files in the sub-directories of `image`.
 
 Discussions
 -------
-In practice, computing checksum is usually the most time-consuming stage in finding duplicate files. Hence, it is sometimes preferrable to separate this stage from the process of finding duplicate files. For example, consider the situation that you want to compare files in folder A against those in folders B<sub>1</sub>, ..., B<sub>n</sub> and you don't want to compare files in B<sub>1</sub>, ..., B<sub>n</sub> with each other. In this case, saving the checksums in intermediate files and comparing the folders using these files will be far more efficient than comparing the folders in pairs directly.
+In practice, computing checksum is usually the most time-consuming stage in finding duplicate files. Hence, it is sometimes preferrable to separate this stage from the process of finding duplicate files. For example, consider the situation that you want to compare files in folder A against those in folders B<sub>1</sub>, ..., B<sub>n</sub> and you don't want to compare files in B<sub>1</sub>, ..., B<sub>n</sub> with each other. In this case, comparing the folders using pre-computed checksums is far more efficient than comparing the folders in pairs directly. You can also parallelize the computation of checksums as follows:
+
+    find-duplicate --digest A > A.checksum
+    for i in $(seq 1 $n); do
+        (   find-duplicate --digest B$i > B$i.checksum
+            (   flock -n 200
+                cat A.checksum B$i.checksum | find-duplicate --pipe 
+                rm B$i.checksum
+            ) 200>.lock 
+        ) &
+    done
+    rm *.checksum .lock
