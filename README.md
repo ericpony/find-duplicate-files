@@ -9,8 +9,8 @@ Usage
     Usage: /data/slugfly/ericpony/BIN/find-duplicate [OPTIONS] {DIR,FILE}*
     Options:
       --checksum=TYPE  Specify the type(crc, md5, both) of checksum. Default is crc.
-      --digest         Do not find duplicates. Instead, print checksums of the files.
-      --pipe           Read checksums from STDIN.
+      --digest         Don't find duplicates. Print file checksums instead.
+      --pipe           Don't compute checksums. Read checksums from STDIN or FILE.
       --parallel=N     Change the number of sorts run concurrently to N.
       --verbose        Print debug messages.
       --help           Print this message.
@@ -19,25 +19,33 @@ Given at least one DIR/FILE, the script checks the files contains in DIR or list
 
     find-duplicate --checksum=md5 images
 
-You can also do this in two stages (see discussions below):
+which is equivalent to (see discussion below):
 
     find-duplicate --checksum=md5 --digest images | find-duplicate --pipe
 
-Note that the above usages don't check files in the sub-directories of `image`. To check files recursively, use
+Note that the above usages don't check files in the sub-directories. To check files recursively, use
 
     find images | find-duplicate --checksum=md5 
 
-Discussions
+Discussion
 -------
-In practice, computing checksum is usually the most time-consuming stage in finding duplicate files. Hence, it is sometimes preferrable to separate this stage from the process of finding duplicate files. For example, consider the situation that you want to compare files in folder A against those in folders B<sub>1</sub>, ..., B<sub>n</sub> and you don't want to compare files in B<sub>1</sub>, ..., B<sub>n</sub> with each other. In this case, comparing the folders using pre-computed checksums is far more efficient than comparing the folders in pairs directly. You can also parallelize the computation of checksums as follows:
+In practice, computing checksum is usually the most time-consuming stage in finding duplicate files. Hence, it is sometimes preferrable to separate this stage from the process of finding duplicate files. For example, consider the situation that you want to compare files in folder A against those in folders B<sub>1</sub>, ..., B<sub>n</sub> and you don't want to compare files in B<sub>1</sub>, ..., B<sub>n</sub> with each other. In this case, comparing the folders using pre-computed checksums is far more efficient than comparing the folders in pairs directly. Another advantage of two-stage processing is that you can compute the checksums in parallel:
 
     find-duplicate --digest A > A.checksum
-    for i in $(seq 1 $n); do # would spawn $n processes
+    for i in $(seq 1 $n); do # spawn $n processes
         (   find-duplicate --digest B$i > B$i.checksum
             (   flock 200
-                cat A.checksum B$i.checksum | find-duplicate --pipe 
+                cat A.checksum B$i.checksum | find-duplicate --pipe && rm B$i.checksum
                 rm B$i.checksum
             ) 200>.lock 
         ) &
     done
-    rm *.checksum .lock
+    rm .lock
+
+For another example, suppose you want to compare files in folders B<sub>1</sub>, ..., B<sub>n</sub>. Instead of invoking `find-duplicate B1 ... Bn` directly, you can parallelize the computation of checksums as follows:
+
+    for i in $(seq 1 $n); do # spawn $n processes
+        find-duplicate --digest B$i > B$i.checksum &
+    done
+    wait 
+    cat *.checksum | find-duplicate --pipe && *.checksum
