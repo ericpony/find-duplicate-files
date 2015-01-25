@@ -23,7 +23,7 @@ You can also do this in two stages (see discussions below):
 
     find-duplicate --checksum=md5 --digest images | find-duplicate --pipe
 
-Note that the above lines doesn't check files in the sub-directories of `image`. To check files recursively, use
+Note that the above usages don't check files in the sub-directories of `image`. To check files recursively, use
 
     find images | find-duplicate --checksum=md5 
 
