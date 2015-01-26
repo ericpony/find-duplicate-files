@@ -8,9 +8,9 @@ Usage
 -----
     Usage: /data/slugfly/ericpony/BIN/find-duplicate [OPTIONS] {DIR,FILE}*
     Options:
-      --checksum=TYPE  Specify the type(crc, md5, both) of checksum. Default is crc.
+      --checksum=TYPE  Specify the type (crc, md5, both) of checksum. Default is crc.
       --digest         Don't find duplicates. Print checksums of the input files instead.
-      --pipe           Don't compute checksums. Read checksums from STDIN or FILE instead.
+      --pipe           Don't compute checksums. Read checksums from STDIN instead.
       --parallel=N     Change the number of sorts run concurrently to N.
       --verbose        Print debug messages.
       --help           Print this message.
@@ -35,7 +35,7 @@ In practice, computing checksum is usually the most time-consuming stage in the 
     for i in $(seq 1 $n); do # spawn $n processes
         (   find-duplicate --digest B$i > B$i.checksum
             (   flock 200
-                cat A.checksum B$i.checksum | find-duplicate --pipe && rm B$i.checksum
+                cat A.checksum B$i.checksum | find-duplicate --pipe
                 rm B$i.checksum
             ) 200>.lock 
         ) &
