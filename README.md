@@ -1,6 +1,6 @@
 #Find duplicate files
 
-A Perl script that locates duplicate files (ie. files with identical contents but at different inodes) with O(n) time and O(1) space overhead. It uses GNU sort that takes O(nlgn) time and O(n) space to sort the entries. This script manages to minimize the overheads needed to find duplicates. It should be among the most efficient scripts available on GitHub for the same purpose. 
+This is a Perl script that locates duplicate files (ie. files with identical contents but at different inodes) with O(n) time and O(1) space overhead. It uses GNU sort that takes O(nlgn) time and O(n) space to sort the entries. This script manages to minimize the overheads needed to find duplicates. It should be among the most efficient scripts available on GitHub for the same purpose. 
 
 File duplicatiion is checked using [String::CRC32](http://search.cpan.org/~soenke/String-CRC32-1.5/CRC32.pod) and [Digest::MD5](http://search.cpan.org/~gaas/Digest-MD5-2.54/MD5.pm). You can use one or both of them as checksum.
 
