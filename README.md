@@ -49,4 +49,4 @@ For a slightly more convoluted example, consider the situation that you want to 
         ) &
     done
 
-Note that `flock` is used to prevent the processes from writing to STDOUT simultaneously.
+Here we use `flock` to prevent the processes from writing to STDOUT simultaneously.
