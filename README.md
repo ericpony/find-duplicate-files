@@ -6,7 +6,7 @@ File duplicatiion is checked using [String::CRC32](http://search.cpan.org/~soenk
 
 Usage
 -----
-    Usage: /data/slugfly/ericpony/BIN/find-duplicate [OPTIONS] {DIR,FILE}*
+    Usage: find-duplicate [OPTIONS] {DIR,FILE}*
     Options:
       --checksum=TYPE  Specify the type (crc, md5, both) of checksum. Default is crc.
       --digest         Don't find duplicates. Print checksums of the input files instead.
